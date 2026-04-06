@@ -43,9 +43,10 @@ public class cClientes {
     }
     @GetMapping("/buscar")
     public Mono<ResponseEntity<genericModel<List<BuscarClientes>>>> obtener_listadoclientes(
-            @RequestParam(required = false) String q) {
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Integer estado) {
         String valorBuscar = (q == null) ? "" : q;
-        return this.service.buscarClientes(valorBuscar)
+        return this.service.buscarClientes(valorBuscar, estado)
                 .flatMap(GenericoException::success)
                 .doOnSuccess(response ->
                         log.info("Operación exitosa: {} clientes encontrados",

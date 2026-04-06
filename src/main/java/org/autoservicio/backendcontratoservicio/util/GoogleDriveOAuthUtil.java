@@ -31,18 +31,18 @@ import java.util.List;
 public class GoogleDriveOAuthUtil {
     private static final String APPLICATION_NAME = "SISTEMACONTRATO";
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
-    private static final String TOKENS_DIRECTORY_PATH = "/opt/contrato_servicio/tokens";
-    //    private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final List<String> SCOPES = List.of(DriveScopes.DRIVE_FILE);
-    private static final String CREDENTIALS_FILE_PATH = "/client_secret.json"; // guárdalo en src/main/resources
+    private static final String CREDENTIALS_FILE_PATH = "/client_secret.json";
 
-    public static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws Exception {
+    public static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT,
+                                            String tokensDirectoryPath) throws Exception {
         InputStream in = GoogleDriveOAuthUtil.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
+        if (in == null) throw new FileNotFoundException("No se encontró client_secret.json en resources");
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
+                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(tokensDirectoryPath)))
                 .setAccessType("offline")
                 .build();
 
@@ -81,9 +81,10 @@ public class GoogleDriveOAuthUtil {
         if (in == null) throw new RuntimeException("No se encontró client_secret.json");
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
 
+        String tokensPath = System.getProperty("google.drive.tokens.path", "/opt/contrato_servicio/tokens");
         return new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
+                .setDataStoreFactory(new FileDataStoreFactory(new File(tokensPath)))
                 .setAccessType("offline")
                 .build();
     }
@@ -101,8 +102,8 @@ public class GoogleDriveOAuthUtil {
     }
 
 
-    public static void saveCredential(Credential credential) throws Exception {
-        File tokenFile = new File(TOKENS_DIRECTORY_PATH, "StoredCredential.json");
+    public static void saveCredential(Credential credential, String tokensDirectoryPath) throws Exception {
+        File tokenFile = new File(tokensDirectoryPath, "StoredCredential.json");
         try (FileOutputStream fos = new FileOutputStream(tokenFile)) {
             JSON_FACTORY.createJsonGenerator(fos, null).serialize(credential);
         }

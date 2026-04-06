@@ -3,7 +3,9 @@ package org.autoservicio.backendcontratoservicio.config;
 import org.autoservicio.backendcontratoservicio.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -43,46 +45,57 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Endpoints públicos
+                        // Swagger
                         .pathMatchers(
-                                "/swagger-ui.html",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/webjars/**",
-                                "/swagger-resources/**",
-                                "/v2/api-docs/**"
-
+                                "/contrato_servicio/swagger-ui.html",
+                                "/contrato_servicio/swagger-ui/**",
+                                "/contrato_servicio/v3/api-docs/**",
+                                "/contrato_servicio/webjars/**",
+                                "/contrato_servicio/swagger-resources/**"
                         ).permitAll()
-                        .pathMatchers("/api/auth/**","/api/facturacion/buscar_facturas_enlinea",
-                                "/api/facturacion/actualizar_factura",
-                                "/api/pagos/**",
-                                "/api/paramae/**",
-                                "/api/izipay/**").permitAll()
+
+                        // Auth y endpoints públicos
+                        .pathMatchers(
+                                "/contrato_servicio/api/auth/**",
+                                "/contrato_servicio/api/facturacion/buscar_facturas_enlinea",
+                                "/contrato_servicio/api/facturacion/actualizar_factura",
+                                "/contrato_servicio/api/pagos/**",
+                                "/contrato_servicio/api/paramae/**",
+                                "/contrato_servicio/api/izipay/**"
+                        ).permitAll()
 
                         // Endpoints protegidos
-                        .pathMatchers("/api/**", "/contrato_servicio/api/**").authenticated()
-                        // Endpoints protegidos
-                        .pathMatchers("/**","/contrato_servicio/**").authenticated()
-
-                        // Cualquier otro endpoint
-//                        .anyExchange().authenticated()
+                        .pathMatchers("/contrato_servicio/api/**").authenticated()
+                        .anyExchange().permitAll()
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((exchange, e) -> {
+                            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                            return exchange.getResponse().setComplete();
+                        })
                 )
                 .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
     }
 
     /**
-     * Configuración de CORS (WebFlux)
+     * Configuración de CORS (WebFlux).
+     * @Order(-101) garantiza que corre ANTES del SecurityWebFilterChain (order = -100),
+     * así las cabeceras CORS se agregan incluso cuando Security rechaza la petición.
      */
     @Bean
+    @Order(-101)
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
 
         // Producción: restringir a tus dominios
         corsConfig.setAllowedOrigins(Arrays.asList(
                 "https://agoisp.pro",
+                "https://www.agoisp.pro",
+                "https://dev.agoisp.pro",
                 "https://pago.agoisp.pro",
                 "http://localhost:4200",
+                "http://localhost:4201",
                 "http://31.97.133.166"
         ));
 

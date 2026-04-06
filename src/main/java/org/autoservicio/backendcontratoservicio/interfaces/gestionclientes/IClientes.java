@@ -12,4 +12,5 @@ public interface IClientes {
     List<ClientesRequest> listadoclientes();
     responseModel registrarclientes(Integer op, ClientesModel obj);
     List<BuscarClientes> buscarclientes(String valorBuscar);
+    BuscarClientes buscarClientePorId(Integer id);
 }

@@ -1,0 +1,70 @@
+spring:
+  datasource:
+    url: jdbc:mysql://31.97.133.166:3306/telecomunicaciones
+    username: magistrack
+    password: M@gistr4ck-BC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        use_sql_comments: true
+    show-sql: true
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  mail:
+    host: smtp.gmail.com
+    port: 465
+    username: agotecdocumentos@gmail.com
+    password: kuzc ervd hchm cqhn
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: false
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+  webflux:
+    base-path: /contrato_servicio
+    static-path-pattern: /**
+  codec:
+    max-in-memory-size: 50MB
+
+
+google:
+  drive:
+    credentials:
+      path: classpath:client_secret.json
+    tokens:
+      path: /opt/contrato_servicio/tokens
+
+jwt:
+  secret: miClaveSecretaMuySeguraYExtremadamenteLargaParaJWT2024
+  expiration: 86400000
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  cache:
+    disabled: true
+
+server:
+  port: 8080
+
+sunat:
+  url: https://e-fact.facturacion-idmhperu.website/facturador/sunat/comprobante/sent
+  url-guia: https://e-fact.facturacion-idmhperu.website/facturador/sunat/guia/sent
+  url-guia-valid: https://e-fact.facturacion-idmhperu.website/facturador/sunat/guia/valid

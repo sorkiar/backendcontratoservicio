@@ -14,6 +14,7 @@ import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 import org.autoservicio.backendcontratoservicio.model.DriveFileInfo;
 import org.autoservicio.backendcontratoservicio.util.GoogleDriveOAuthUtil;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -27,9 +28,9 @@ public class GoogleDriveService {
 
     private final Drive driveService;
 
-    public GoogleDriveService() throws Exception {
+    public GoogleDriveService(@Value("${google.drive.tokens.path}") String tokensPath) throws Exception {
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        Credential credential = GoogleDriveOAuthUtil.getCredentials(HTTP_TRANSPORT);
+        Credential credential = GoogleDriveOAuthUtil.getCredentials(HTTP_TRANSPORT, tokensPath);
 
         driveService = new Drive.Builder(HTTP_TRANSPORT, JacksonFactory.getDefaultInstance(), credential)
                 .setApplicationName("SISTEMACONTRATO")

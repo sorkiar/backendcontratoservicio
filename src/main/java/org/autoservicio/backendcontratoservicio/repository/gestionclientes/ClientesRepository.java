@@ -59,4 +59,18 @@ public class ClientesRepository  extends IConfigGeneric implements IClientes {
         }
     }
 
+    @Override
+    public BuscarClientes buscarClientePorId(Integer id) {
+        try {
+            String query = "SELECT id, nombres, apellidos, tipodocident, " +
+                    "nrodocident, email, telefono, estareg FROM clientes WHERE id = ?";
+            List<BuscarClientes> result = this.jTemplate().query(query,
+                    new Object[]{id},
+                    new BeanPropertyRowMapper<>(BuscarClientes.class));
+            return result.isEmpty() ? null : result.get(0);
+        } catch (Exception ex) {
+            throw new RepositorioException("error al buscar cliente por id: " + ex.getMessage());
+        }
+    }
+
 }

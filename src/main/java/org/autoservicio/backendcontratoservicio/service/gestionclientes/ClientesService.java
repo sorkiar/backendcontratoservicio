@@ -29,6 +29,14 @@ public class ClientesService {
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
+    public Mono<List<BuscarClientes>> buscarClientes(String valorBuscar, Integer estado) {
+        return Mono.fromCallable(() -> {
+            List<BuscarClientes> result = this.repo.buscarclientes(valorBuscar);
+            if (estado == null) return result;
+            return result.stream().filter(c -> estado.equals(c.getEstareg())).toList();
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
 
 
 }

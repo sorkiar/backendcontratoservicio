@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        /*
+         * Ticket 80mm.
+         * openhtmltopdf respeta @page size cuando se pasa baseDocumentUri != null.
+         * Alto en "auto" → el motor calcula el alto según el contenido.
+         * Equivalencias: 80mm = 226.77pt ≈ 302px (@96dpi)
+         */
+        @page {
+            size: 226pt 700pt;
+            margin: 6pt 8pt;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 210pt;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 8pt;
+            color: #000;
+            line-height: 1.3;
+        }
+        .center  { text-align: center; }
+        .right   { text-align: right; }
+        .bold    { font-weight: bold; }
+        .small   { font-size: 7pt; }
+        .sep {
+            border: none;
+            border-top: 1px dashed #000;
+            margin: 3pt 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            font-size: 7.5pt;
+            vertical-align: top;
+            padding: 1pt 0;
+        }
+        .col-desc  { width: 44%; }
+        .col-cant  { width: 10%; text-align: right; }
+        .col-pu    { width: 22%; text-align: right; }
+        .col-sub   { width: 24%; text-align: right; }
+    </style>
+</head>
+<body>
+
+<!-- LOGO -->
+<div class="center" th:if="${empresa.logoBase64 != null}">
+    <img th:src="'data:image/png;base64,' + ${empresa.logoBase64}"
+         style="max-width:90pt; max-height:45pt; display:block; margin:0 auto 3pt;"/>
+</div>
+
+<!-- ENCABEZADO EMPRESA -->
+<div class="center bold" th:text="${empresa.razonSocial}">Empresa</div>
+<div class="center small" th:if="${empresa.nombreComercial != null}" th:text="${empresa.nombreComercial}"></div>
+<div class="center small" th:if="${empresa.direccion != null}" th:text="${empresa.direccion}"></div>
+<div class="center small">RUC: <span th:text="${empresa.documento}"></span></div>
+<div class="center small" th:if="${empresa.telefono != null}" th:text="'Tel: ' + ${empresa.telefono}"></div>
+<div class="center small" th:if="${empresa.paginaWeb != null}" th:text="${empresa.paginaWeb}"></div>
+<div class="center small" th:if="${empresa.eslogan != null}" th:text="${empresa.eslogan}"></div>
+
+<hr class="sep"/>
+
+<!-- TIPO DOCUMENTO + SERIE-CORRELATIVO -->
+<div class="center bold" th:text="${venta.tipoDocumentoVenta != null ? venta.tipoDocumentoVenta.nombre : 'NOTA DE VENTA'}">NOTA DE VENTA</div>
+<div class="center bold" th:text="${venta.serie + '-' + venta.correlativo}">NV01-00000001</div>
+<div class="center small">Fecha: <span th:text="${#temporals.format(venta.fecha, 'dd/MM/yyyy')}"></span></div>
+
+<hr class="sep"/>
+
+<!-- CLIENTE -->
+<div class="small">
+    <strong>Cliente: </strong>
+    <span th:text="${venta.cliente != null ? (venta.cliente.razonSocial != null ? venta.cliente.razonSocial : venta.cliente.nombreCompleto) : '-'}"></span>
+</div>
+<div class="small" th:if="${venta.cliente != null and venta.cliente.nroDocumento != null}">
+    <span th:text="${(venta.cliente.tipoDocIdentidad != null ? venta.cliente.tipoDocIdentidad.descripcion : 'Doc')}"></span>:
+    <span th:text="${venta.cliente.nroDocumento}"></span>
+</div>
+<div class="small" th:if="${venta.ordenCompra != null}">
+    Ref: <span th:text="${venta.ordenCompra}"></span>
+</div>
+
+<hr class="sep"/>
+
+<!-- TABLA DE ÍTEMS -->
+<table>
+    <thead>
+        <tr>
+            <th class="col-desc">Descripción</th>
+            <th class="col-cant">Cant</th>
+            <th class="col-pu">P.Unit</th>
+            <th class="col-sub">Importe</th>
+        </tr>
+    </thead>
+    <tbody>
+        <th:block th:each="item : ${venta.detalle}">
+            <tr>
+                <td class="col-desc" th:text="${item.descripcion}">Ítem</td>
+                <td class="col-cant"
+                    th:text="${#numbers.formatDecimal(item.cantidad,1,2) + (item.unidad != null ? (' ' + item.unidad) : '')}">1</td>
+                <td class="col-pu"   th:text="${#numbers.formatDecimal(item.precioUnitario, 1, 2)}">0.00</td>
+                <td class="col-sub"  th:text="${#numbers.formatDecimal(item.subtotal, 1, 2)}">0.00</td>
+            </tr>
+            <tr th:if="${item.descuento != null and item.descuento > 0}" class="small">
+                <td class="col-desc" style="padding-left:8pt">  Descuento</td>
+                <td></td><td></td>
+                <td class="col-sub" th:text="'-' + ${#numbers.formatDecimal(item.descuento,1,2)}"></td>
+            </tr>
+        </th:block>
+    </tbody>
+</table>
+
+<hr class="sep"/>
+
+<!-- TOTALES -->
+<table>
+    <tr>
+        <td>Op. Gravada:</td>
+        <td class="right" th:text="'S/ ' + ${#numbers.formatDecimal(venta.subtotal, 1, 2)}">S/ 0.00</td>
+    </tr>
+    <tr>
+        <td>IGV (18%):</td>
+        <td class="right" th:text="'S/ ' + ${#numbers.formatDecimal(venta.igv, 1, 2)}">S/ 0.00</td>
+    </tr>
+</table>
+<table>
+    <tr>
+        <td class="bold">TOTAL A PAGAR:</td>
+        <td class="right bold" th:text="'S/ ' + ${#numbers.formatDecimal(venta.total, 1, 2)}">S/ 0.00</td>
+    </tr>
+</table>
+
+<hr class="sep"/>
+
+<!-- FORMA DE PAGO -->
+<div class="small">Forma de pago: <strong th:text="${venta.formaPago}">CONTADO</strong></div>
+
+<div th:if="${venta.pagos != null and !#lists.isEmpty(venta.pagos)}">
+    <div th:each="pago : ${venta.pagos}" class="small">
+        &#8226; <span th:text="${pago.metodoPago != null ? pago.metodoPago.nombre : '-'}"></span>:
+        S/ <span th:text="${#numbers.formatDecimal(pago.monto, 1, 2)}"></span>
+        <div th:if="${pago.vuelto != null and pago.vuelto > 0}" class="small">
+            &nbsp;&nbsp;Vuelto: S/ <span th:text="${#numbers.formatDecimal(pago.vuelto,1,2)}"></span>
+        </div>
+    </div>
+</div>
+
+<!-- CUOTAS -->
+<div th:if="${venta.cuotas != null and !#lists.isEmpty(venta.cuotas)}">
+    <hr class="sep"/>
+    <div class="bold small">Cuotas de pago:</div>
+    <div th:each="cuota : ${venta.cuotas}" class="small">
+        Cuota <span th:text="${cuota.numeroCuota}"></span>
+        - S/ <span th:text="${#numbers.formatDecimal(cuota.monto, 1, 2)}"></span>
+        - <span th:text="${#temporals.format(cuota.fechaVencimiento, 'dd/MM/yyyy')}"></span>
+    </div>
+</div>
+
+<!-- OBSERVACIONES -->
+<div th:if="${venta.observaciones != null and !#strings.isEmpty(venta.observaciones)}"
+     class="small" style="margin-top:3pt">
+    Obs: <span th:text="${venta.observaciones}"></span>
+</div>
+
+<!-- QR / SUNAT -->
+<div th:if="${venta.sunatQrString != null and !#strings.isEmpty(venta.sunatQrString)}">
+    <hr class="sep"/>
+    <div class="center small">Consulte en: <span th:text="${facturadorUrl}"></span></div>
+    <div th:if="${venta.sunatQrBase64 != null}" class="center">
+        <img th:src="'data:image/png;base64,' + ${venta.sunatQrBase64}"
+             style="width:80pt; height:80pt; margin-top:3pt"/>
+    </div>
+</div>
+
+<hr class="sep"/>
+<div class="center small">*** Gracias por su preferencia ***</div>
+
+</body>
+</html>
