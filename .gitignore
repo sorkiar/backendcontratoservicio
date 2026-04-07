@@ -31,7 +31,4 @@ build/
 
 ### VS Code ###
 .vscode/
-tokens/
 src/main/resources/client_secret.json
-
-/tokens/**
