@@ -165,10 +165,10 @@ public class SaleService {
         String docTypeCode = "03"; // default: Boleta
         if (request.getClientId() != null) {
           try {
-            List<BuscarClientes> clients = clientesRepository.buscarclientes(
-                String.valueOf(request.getClientId()));
-            if (!clients.isEmpty() && clients.get(0).getTipodocident() != null
-                && clients.get(0).getTipodocident() == 7) {
+            BuscarClientes client = clientesRepository.buscarClientePorId(
+                request.getClientId().intValue());
+            if (client != null && client.getTipodocident() != null
+                && client.getTipodocident() == 7) {
               docTypeCode = "01"; // Factura para RUC
             }
           } catch (Exception ignored) {}
@@ -286,10 +286,9 @@ public class SaleService {
 
   private SaleResponse enrichWithClient(SaleResponse response) {
     try {
-      List<BuscarClientes> clients = clientesRepository.buscarclientes(
-          String.valueOf(response.getClientId()));
-      if (!clients.isEmpty()) {
-        BuscarClientes c = clients.get(0);
+      BuscarClientes c = clientesRepository.buscarClientePorId(
+          response.getClientId().intValue());
+      if (c != null) {
         String fullName = c.getNombre_completo() != null ? c.getNombre_completo()
             : ((c.getNombres() != null ? c.getNombres() : "") + " "
             + (c.getApellidos() != null ? c.getApellidos() : "")).trim();

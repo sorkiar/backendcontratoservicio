@@ -45,7 +45,7 @@ google:
     credentials:
       path: classpath:client_secret.json
     tokens:
-      path: ${user.home}/.agoispro/drive-tokens
+      path: tokens
 
 jwt:
   secret: miClaveSecretaMuySeguraYExtremadamenteLargaParaJWT2026
