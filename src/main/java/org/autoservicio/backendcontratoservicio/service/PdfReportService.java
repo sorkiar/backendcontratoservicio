@@ -366,18 +366,17 @@ public class PdfReportService {
     }
 
     private BuscarClientes buscarCliente(Long clientId) {
-        List<BuscarClientes> list = clientesRepository.buscarclientes(String.valueOf(clientId));
-        if (list == null || list.isEmpty()) {
+        BuscarClientes c = clientesRepository.buscarClientePorId(clientId.intValue());
+        if (c == null) {
             throw new RepositorioException("Cliente no encontrado: " + clientId);
         }
-        return list.get(0);
+        return c;
     }
 
     private BuscarClientes buscarClienteOpt(Long clientId) {
         if (clientId == null) return null;
         try {
-            List<BuscarClientes> list = clientesRepository.buscarclientes(String.valueOf(clientId));
-            return (list != null && !list.isEmpty()) ? list.get(0) : null;
+            return clientesRepository.buscarClientePorId(clientId.intValue());
         } catch (Exception e) {
             return null;
         }

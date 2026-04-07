@@ -33,8 +33,9 @@ public class cSale {
       @RequestParam(required = false) Long clientId,
       @RequestParam(required = false) String saleStatus,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-    return service.listar(clientId, saleStatus, startDate, endDate)
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+      @RequestParam(required = false) String documentStatus) {
+    return service.listar(clientId, saleStatus, startDate, endDate, documentStatus)
         .flatMap(GenericoException::success)
         .doOnSuccess(r -> log.info("Operación exitosa"))
         .doOnError(e -> log.error("Error: {}", e.getMessage()))

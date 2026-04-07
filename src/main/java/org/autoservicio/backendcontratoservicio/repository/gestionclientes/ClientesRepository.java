@@ -11,6 +11,7 @@ import org.autoservicio.backendcontratoservicio.response.ClientesRequest;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collections;
 import java.util.List;
 
 @Repository
@@ -70,6 +71,19 @@ public class ClientesRepository  extends IConfigGeneric implements IClientes {
             return result.isEmpty() ? null : result.get(0);
         } catch (Exception ex) {
             throw new RepositorioException("error al buscar cliente por id: " + ex.getMessage());
+        }
+    }
+
+    public List<BuscarClientes> buscarClientesPorIds(List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        try {
+            String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+            String query = "SELECT id, nombres, apellidos, tipodocident, " +
+                    "nrodocident, email, telefono, estareg FROM clientes WHERE id IN (" + placeholders + ")";
+            return this.jTemplate().query(query, ids.toArray(),
+                    new BeanPropertyRowMapper<>(BuscarClientes.class));
+        } catch (Exception ex) {
+            throw new RepositorioException("error al buscar clientes por ids: " + ex.getMessage());
         }
     }
 

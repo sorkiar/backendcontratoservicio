@@ -125,7 +125,7 @@ public class SunatDocumentJobService {
 
     @Transactional
     public void sendCreditDebitNoteNow(Long noteId) {
-        CreditDebitNote note = creditDebitNoteRepo.findById(noteId)
+        CreditDebitNote note = creditDebitNoteRepo.findByIdWithDetails(noteId)
                 .orElseThrow(() -> new RuntimeException("Nota no encontrada: " + noteId));
 
         SunatRequestLog logEntry = new SunatRequestLog();
@@ -152,7 +152,7 @@ public class SunatDocumentJobService {
             if (response.getStatusCode().is2xxSuccessful() && factResponse != null && factResponse.isSuccess()) {
                 FacturacionResponse.FacturacionData data = factResponse.getData();
                 note.setStatus("ACEPTADO".equalsIgnoreCase(data.getTypeResultadoDeclaracion())
-                        ? "ENVIADO" : "ERROR");
+                        ? "EMITIDO" : "ERROR");
                 note.setSunatMessage(data.getMessage());
                 note.setSunatResponseCode(String.valueOf(data.getResponseCode()));
                 note.setHashCode(data.getCodigoHash());
@@ -187,8 +187,11 @@ public class SunatDocumentJobService {
 
     @Transactional
     public void sendRemissionGuideNow(Long guideId) {
-        RemissionGuide guide = remissionGuideRepo.findById(guideId)
+        // Two queries to avoid MultipleBagFetchException (items + drivers are two collections)
+        RemissionGuide guide = remissionGuideRepo.findByIdWithItems(guideId)
                 .orElseThrow(() -> new RuntimeException("Guía no encontrada: " + guideId));
+        remissionGuideRepo.findByIdWithDrivers(guideId)
+                .ifPresent(g -> guide.setDrivers(g.getDrivers()));
 
         SunatRequestLog logEntry = new SunatRequestLog();
         logEntry.setDocumentType("remission_guide");
@@ -213,7 +216,7 @@ public class SunatDocumentJobService {
             if (response.getStatusCode().is2xxSuccessful() && factResponse != null && factResponse.isSuccess()) {
                 FacturacionResponse.FacturacionData data = factResponse.getData();
                 guide.setStatus("ACEPTADO".equalsIgnoreCase(data.getTypeResultadoDeclaracion())
-                        ? "ENVIADO" : "ERROR");
+                        ? "EMITIDO" : "ERROR");
                 guide.setSunatMessage(data.getMessage());
                 guide.setSunatResponseCode(String.valueOf(data.getResponseCode()));
                 guide.setHashCode(data.getCodigoHash());
@@ -282,7 +285,7 @@ public class SunatDocumentJobService {
             if (response.getStatusCode().is2xxSuccessful() && factResponse != null && factResponse.isSuccess()) {
                 FacturacionResponse.FacturacionData data = factResponse.getData();
                 doc.setStatus("ACEPTADO".equalsIgnoreCase(data.getTypeResultadoDeclaracion())
-                        ? "ENVIADO" : "ERROR");
+                        ? "EMITIDO" : "ERROR");
                 doc.setSunatMessage(data.getMessage());
                 doc.setSunatResponseCode(String.valueOf(data.getResponseCode()));
                 doc.setHashCode(data.getCodigoHash());
@@ -306,6 +309,12 @@ public class SunatDocumentJobService {
             }
 
         } catch (RuntimeException e) {
+            log.error("Error enviando documento de venta {} a SUNAT: {}", documentId, e.getMessage());
+            doc.setStatus("ERROR");
+            doc.setSunatMessage(e.getMessage());
+            saleDocumentRepo.save(doc);
+            logEntry.setSuccess(false);
+            logEntry.setErrorMessage(e.getMessage());
             throw e;
         } catch (Exception e) {
             log.error("Error enviando documento de venta {} a SUNAT: {}", documentId, e.getMessage());

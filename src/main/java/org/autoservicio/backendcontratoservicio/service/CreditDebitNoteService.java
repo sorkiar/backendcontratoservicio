@@ -27,6 +27,7 @@ import org.autoservicio.backendcontratoservicio.jparepository.ServiceEntityJpaRe
 import org.autoservicio.backendcontratoservicio.jparepository.catalog.CreditDebitNoteTypeJpaRepo;
 import org.autoservicio.backendcontratoservicio.jparepository.catalog.DocumentTypeSunatJpaRepo;
 import org.autoservicio.backendcontratoservicio.jparepository.catalog.UnitMeasureJpaRepo;
+import org.autoservicio.backendcontratoservicio.job.SunatDocumentJobService;
 import org.autoservicio.backendcontratoservicio.specification.CreditDebitNoteSpec;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ public class CreditDebitNoteService {
   private final ServiceEntityJpaRepo serviceRepo;
   private final UnitMeasureJpaRepo unitMeasureRepo;
   private final PlatformTransactionManager txManager;
+  private final SunatDocumentJobService jobService;
 
   private <T> T inTx(TransactionCallback<T> cb) {
     return new TransactionTemplate(txManager).execute(cb);
@@ -76,51 +78,65 @@ public class CreditDebitNoteService {
   }
 
   public Mono<CreditDebitNoteResponse> crear(CreditDebitNoteRequest request) {
-    return Mono.fromCallable(() -> inTx(txStatus -> {
-      Sale sale = saleRepo.findById(request.getSaleId())
-          .orElseThrow(() -> new RuntimeException("Venta no encontrada: " + request.getSaleId()));
-      SaleDocument origDoc = saleDocumentRepo.findById(request.getOriginalDocumentId())
-          .orElseThrow(() -> new RuntimeException("Documento original no encontrado: " + request.getOriginalDocumentId()));
-      DocumentTypeSunat docType = documentTypeSunatRepo.findById(request.getDocumentTypeCode())
-          .orElseThrow(() -> new RuntimeException("Tipo comprobante no encontrado: " + request.getDocumentTypeCode()));
-      CreditDebitNoteType noteType = noteTypeRepo.findById(request.getCreditDebitNoteTypeCode())
-          .orElseThrow(() -> new RuntimeException("Tipo nota no encontrado: " + request.getCreditDebitNoteTypeCode()));
+    return Mono.fromCallable(() -> {
+      Long noteId = inTx(txStatus -> {
+        Sale sale = saleRepo.findById(request.getSaleId())
+            .orElseThrow(() -> new RuntimeException("Venta no encontrada: " + request.getSaleId()));
+        SaleDocument origDoc = saleDocumentRepo.findById(request.getOriginalDocumentId())
+            .orElseThrow(() -> new RuntimeException("Documento original no encontrado: " + request.getOriginalDocumentId()));
+        DocumentTypeSunat docType = documentTypeSunatRepo.findById(request.getDocumentTypeCode())
+            .orElseThrow(() -> new RuntimeException("Tipo comprobante no encontrado: " + request.getDocumentTypeCode()));
+        CreditDebitNoteType noteType = noteTypeRepo.findById(request.getCreditDebitNoteTypeCode())
+            .orElseThrow(() -> new RuntimeException("Tipo nota no encontrado: " + request.getCreditDebitNoteTypeCode()));
 
-      CreditDebitNote note = new CreditDebitNote();
-      note.setSale(sale);
-      note.setOriginalDocument(origDoc);
-      note.setDocumentTypeSunat(docType);
-      note.setCreditDebitNoteType(noteType);
-      note.setReason(request.getReason());
-      note.setIssueDate(request.getIssueDate() != null ? request.getIssueDate() : LocalDate.now());
-      note.setStatus("PENDIENTE");
-      note.setCurrencyCode("PEN");
-      note.setTaxPercentage(new BigDecimal("18.00"));
+        CreditDebitNote note = new CreditDebitNote();
+        note.setSale(sale);
+        note.setOriginalDocument(origDoc);
+        note.setDocumentTypeSunat(docType);
+        note.setCreditDebitNoteType(noteType);
+        note.setReason(request.getReason());
+        note.setIssueDate(request.getIssueDate() != null ? request.getIssueDate() : LocalDate.now());
+        note.setStatus("PENDIENTE");
+        note.setCurrencyCode("PEN");
+        note.setTaxPercentage(new BigDecimal("18.00"));
 
-      if (request.getDocumentSeriesId() != null) {
-        documentSeriesRepo.findByIdWithLock(request.getDocumentSeriesId()).ifPresent(ds -> {
-          int next = ds.getCurrentSequence() + 1;
-          ds.setCurrentSequence(next);
-          documentSeriesRepo.save(ds);
-          note.setDocumentSeries(ds);
-          note.setSeries(ds.getSeries());
-          note.setSequence(next);
-        });
-      }
+        // Auto-detectar serie por código de tipo (07 o 08) y status activo
+        var seriesList = documentSeriesRepo.findByDocumentTypeSunatCodeAndStatusOrderBySeriesAsc(
+            request.getDocumentTypeCode(), 1);
+        if (seriesList.isEmpty()) {
+          throw new RuntimeException("No hay serie activa para el tipo de nota " + request.getDocumentTypeCode()
+              + ". Configure una serie en el módulo de series de documentos.");
+        }
+        var docSeries = documentSeriesRepo.findByIdWithLock(seriesList.get(0).getId())
+            .orElseThrow(() -> new RuntimeException("No se pudo bloquear la serie de nota."));
+        int next = docSeries.getCurrentSequence() + 1;
+        docSeries.setCurrentSequence(next);
+        documentSeriesRepo.save(docSeries);
+        note.setDocumentSeries(docSeries);
+        note.setSeries(docSeries.getSeries());
+        note.setSequence(next);
 
-      List<CreditDebitNoteItem> items = buildItems(request.getItems(), note);
-      note.setItems(items);
+        List<CreditDebitNoteItem> items = buildItems(request.getItems(), note);
+        note.setItems(items);
 
-      BigDecimal subtotal = items.stream().map(CreditDebitNoteItem::getSubtotalAmount)
-          .reduce(BigDecimal.ZERO, BigDecimal::add);
-      BigDecimal tax = items.stream().map(CreditDebitNoteItem::getTaxAmount)
-          .reduce(BigDecimal.ZERO, BigDecimal::add);
-      note.setSubtotalAmount(subtotal);
-      note.setTaxAmount(tax);
-      note.setTotalAmount(subtotal.add(tax));
+        BigDecimal subtotal = items.stream().map(CreditDebitNoteItem::getSubtotalAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal tax = items.stream().map(CreditDebitNoteItem::getTaxAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        note.setSubtotalAmount(subtotal);
+        note.setTaxAmount(tax);
+        note.setTotalAmount(subtotal.add(tax));
 
-      return mapper.toResponse(repo.save(note));
-    })).subscribeOn(Schedulers.boundedElastic());
+        return repo.save(note).getId();
+      });
+
+      // Enviar inmediatamente al facturador SUNAT
+      jobService.sendCreditDebitNoteNow(noteId);
+
+      // Recargar con estado actualizado por el envío
+      return inReadTx(txStatus ->
+          mapper.toResponse(repo.findByIdWithDetails(noteId).orElseThrow()));
+    }).subscribeOn(Schedulers.boundedElastic());
   }
 
   private List<CreditDebitNoteItem> buildItems(List<CreditDebitNoteItemRequest> itemRequests,

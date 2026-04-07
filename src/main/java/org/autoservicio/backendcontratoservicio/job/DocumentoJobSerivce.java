@@ -68,7 +68,7 @@ public class DocumentoJobSerivce {
                     //System.out.println(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response.getBody()));
                     var data = factResponse.getData();
                     if ("ACEPTADO".equalsIgnoreCase(data.getTypeResultadoDeclaracion())) {
-                        doc.setEstado("ENVIADO");
+                        doc.setEstado("EMITIDO");
                     } else {
                         doc.setEstado("ERROR");
                     }

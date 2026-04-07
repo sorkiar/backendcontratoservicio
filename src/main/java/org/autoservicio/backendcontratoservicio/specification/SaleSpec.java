@@ -1,6 +1,9 @@
 package org.autoservicio.backendcontratoservicio.specification;
 
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import org.autoservicio.backendcontratoservicio.entity.Sale;
+import org.autoservicio.backendcontratoservicio.entity.SaleDocument;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
@@ -9,12 +12,16 @@ public class SaleSpec {
 
     private SaleSpec() {}
 
-    public static Specification<Sale> build(Long clientId, String saleStatus, LocalDate startDate, LocalDate endDate) {
-        return Specification
-                .where(hasClient(clientId))
-                .and(hasStatus(saleStatus))
-                .and(afterDate(startDate))
-                .and(beforeDate(endDate));
+    public static Specification<Sale> build(Long clientId, String saleStatus,
+                                             LocalDate startDate, LocalDate endDate,
+                                             String documentStatus) {
+        return Specification.allOf(
+                hasClient(clientId),
+                hasStatus(saleStatus),
+                afterDate(startDate),
+                beforeDate(endDate),
+                hasDocumentStatus(documentStatus)
+        );
     }
 
     private static Specification<Sale> hasClient(Long clientId) {
@@ -42,6 +49,15 @@ public class SaleSpec {
         return (root, query, cb) -> {
             if (endDate == null) return null;
             return cb.lessThanOrEqualTo(root.get("saleDate"), endDate);
+        };
+    }
+
+    private static Specification<Sale> hasDocumentStatus(String documentStatus) {
+        return (root, query, cb) -> {
+            if (documentStatus == null || documentStatus.isBlank()) return null;
+            query.distinct(true);
+            Join<Sale, SaleDocument> docs = root.join("documents", JoinType.INNER);
+            return cb.equal(docs.get("status"), documentStatus);
         };
     }
 }

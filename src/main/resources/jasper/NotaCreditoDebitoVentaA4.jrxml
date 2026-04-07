@@ -267,8 +267,8 @@
 				</textElement>
 				<textFieldExpression><![CDATA[$F{comp_descripcion_cliente}]]></textFieldExpression>
 			</textField>
-			<textField mode="Transparent">
-				<reportElement x="11" y="146" width="73" height="12" forecolor="#000000" backcolor="#333333" uuid="1a2b3c4d-0003-0018-0001-000000000001"/>
+			<textField>
+				<reportElement mode="Transparent" x="11" y="146" width="73" height="12" forecolor="#000000" backcolor="#333333" uuid="1a2b3c4d-0003-0018-0001-000000000001"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
 					<font fontName="Arial" size="9" isBold="true" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
 					<paragraph lineSpacing="Single"/>

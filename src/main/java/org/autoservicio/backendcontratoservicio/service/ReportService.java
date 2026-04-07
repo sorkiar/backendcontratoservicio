@@ -19,7 +19,7 @@ public class ReportService {
 
   public Mono<SalesReportResponse> reporteVentas(LocalDate startDate, LocalDate endDate) {
     return Mono.fromCallable(() -> {
-      var spec = SaleSpec.build(null, null, startDate, endDate);
+      var spec = SaleSpec.build(null, null, startDate, endDate, null);
       var sales = saleRepo.findAll(spec);
 
       SalesReportResponse report = new SalesReportResponse();

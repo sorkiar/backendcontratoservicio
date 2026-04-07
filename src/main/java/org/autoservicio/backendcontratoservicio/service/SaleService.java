@@ -7,6 +7,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.autoservicio.backendcontratoservicio.dto.mapper.SaleMapper;
@@ -70,11 +72,35 @@ public class SaleService {
   }
 
   public Mono<List<SaleResponse>> listar(Long clientId, String saleStatus,
-                                         LocalDate startDate, LocalDate endDate) {
+                                         LocalDate startDate, LocalDate endDate,
+                                         String documentStatus) {
     return Mono.fromCallable(() -> inReadTx(status -> {
-      Specification<Sale> spec = SaleSpec.build(clientId, saleStatus, startDate, endDate);
-      return saleRepo.findAll(spec).stream()
-          .map(s -> enrichWithClient(mapper.toResponse(s))).toList();
+      Specification<Sale> spec = SaleSpec.build(clientId, saleStatus, startDate, endDate, documentStatus);
+      List<Sale> sales = saleRepo.findAll(spec);
+      if (sales.isEmpty()) return List.<SaleResponse>of();
+
+      List<Long> ids = sales.stream().map(Sale::getId).toList();
+
+      // Pre-fetch all associations in 3 batch queries — initializes Hibernate L1 cache
+      // so mapper accesses return cached data without additional SQL
+      saleRepo.fetchDocumentsForSaleIds(ids);
+      saleRepo.fetchItemsForSaleIds(ids);
+      saleRepo.fetchPaymentsForSaleIds(ids);
+
+      // Batch client lookup — 1 query for all unique clients
+      List<Integer> uniqueClientIds = sales.stream()
+          .map(s -> s.getClientId() != null ? s.getClientId().intValue() : null)
+          .filter(java.util.Objects::nonNull)
+          .distinct()
+          .collect(Collectors.toList());
+      Map<Long, BuscarClientes> clientMap = clientesRepository
+          .buscarClientesPorIds(uniqueClientIds)
+          .stream()
+          .collect(Collectors.toMap(c -> c.getId().longValue(), c -> c));
+
+      return sales.stream()
+          .map(s -> enrichFromMap(mapper.toResponse(s), s.getClientId(), clientMap))
+          .toList();
     })).subscribeOn(Schedulers.boundedElastic());
   }
 
@@ -297,6 +323,20 @@ public class SaleService {
       }
     } catch (Exception ignored) {
       // Client enrichment is non-critical
+    }
+    return response;
+  }
+
+  private SaleResponse enrichFromMap(SaleResponse response, Long clientId,
+                                     Map<Long, BuscarClientes> clientMap) {
+    if (clientId == null) return response;
+    BuscarClientes c = clientMap.get(clientId);
+    if (c != null) {
+      String fullName = c.getNombre_completo() != null ? c.getNombre_completo()
+          : ((c.getNombres() != null ? c.getNombres() : "") + " "
+          + (c.getApellidos() != null ? c.getApellidos() : "")).trim();
+      response.setClientName(fullName);
+      response.setClientDocNumber(c.getNrodocident());
     }
     return response;
   }
