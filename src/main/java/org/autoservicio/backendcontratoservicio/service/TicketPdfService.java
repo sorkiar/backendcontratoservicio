@@ -102,18 +102,24 @@ public class TicketPdfService {
     /**
      * Generates the ticket PDF, uploads it to Google Drive (same folder as cobranza),
      * and returns the webViewLink URL to be stored in SaleDocument.pdfUrl.
+     * Used by the admin regeneration endpoint.
      */
     public String uploadForSale(Long saleId, Long documentId) {
         Object[] data = loadData(saleId, documentId);
-        Sale sale = (Sale) data[0];
         SaleDocument doc = (SaleDocument) data[1];
-        BuscarClientes client = (BuscarClientes) data[2];
+        byte[] pdfBytes = generate((Sale) data[0], doc, (BuscarClientes) data[2]);
+        return uploadBytesToDrive(pdfBytes, doc.getSeries(), doc.getSequence());
+    }
 
-        byte[] pdfBytes = generate(sale, doc, client);
-
-        String series = doc.getSeries() != null ? doc.getSeries() : "NV01";
-        String seq = doc.getSequence() != null ? String.format("%08d", doc.getSequence()) : "00000001";
-        String fileName = "ticket-" + series + "-" + seq + ".pdf";
+    /**
+     * Uploads pre-generated PDF bytes to Google Drive.
+     * Used during sale creation so the bytes (already generated inside the DB transaction)
+     * are not regenerated from DB again.
+     */
+    public String uploadBytesToDrive(byte[] pdfBytes, String series, Integer sequence) {
+        String seriesStr = series != null ? series : "NV01";
+        String seq = sequence != null ? String.format("%08d", sequence) : "00000001";
+        String fileName = "ticket-" + seriesStr + "-" + seq + ".pdf";
 
         File tempFile = null;
         try {
@@ -123,7 +129,6 @@ public class TicketPdfService {
             }
 
             String folderId = paramaeRepo.buscar_x_ID("DRV", "CONTRA").getValorstring();
-            // Rename temp file so Drive uses the correct display name
             File namedFile = new File(tempFile.getParent(), fileName);
             if (tempFile.renameTo(namedFile)) {
                 tempFile = namedFile;

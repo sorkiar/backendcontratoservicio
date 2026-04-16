@@ -115,7 +115,7 @@ public class SaleService {
   public Mono<SaleResponse> crear(SaleRequest request) {
     return Mono.fromCallable(() -> {
 
-      // PHASE 1: Create sale + SaleDocument inside a single transaction
+      // PHASE 1: Create Sale + SaleDocument in a single transaction.
       long[] ids = inTx(status -> {
         Sale sale = new Sale();
         sale.setClientId(request.getClientId());
@@ -231,26 +231,37 @@ public class SaleService {
       long saleId = ids[0];
       long documentId = ids[1];
 
-      // PHASE 2: Send to SUNAT synchronously (outside the main tx, uses its own @Transactional)
+      // PHASE 2: Generate PDF and upload to Google Drive (outside TX, network call).
+      // On failure: compensating transaction deletes everything committed in Phase 1.
+      // Sale has CascadeType.ALL on documents/items/payments/installments,
+      // so deleting the Sale cascades to all children including SaleDocument.
       if (documentId > 0) {
-        sunatDocumentJobService.sendSaleDocumentNow(documentId);
+        try {
+          String pdfUrl = ticketPdfService.uploadForSale(saleId, documentId);
+          inTx(s -> {
+            SaleDocument d = saleDocumentRepo.findById(documentId).orElseThrow();
+            d.setPdfUrl(pdfUrl);
+            saleDocumentRepo.save(d);
+            Sale sa = saleRepo.findById(saleId).orElseThrow();
+            sa.setTicketPdfUrl(pdfUrl);
+            saleRepo.save(sa);
+            return null;
+          });
+        } catch (Exception e) {
+          log.error("PDF/Drive failed for sale {} doc {}, rolling back entire sale: {}",
+              saleId, documentId, e.getMessage(), e);
+          try {
+            inTx(s -> { saleRepo.deleteById(saleId); return null; });
+          } catch (Exception rollbackEx) {
+            log.error("Compensating rollback also failed for sale {}: {}", saleId, rollbackEx.getMessage(), rollbackEx);
+          }
+          throw new RuntimeException("Error generando o subiendo el PDF: " + e.getMessage(), e);
+        }
       }
 
-      // PHASE 3: Generate ticket PDF, upload to Google Drive, store URL in sale + sale_document
+      // PHASE 3: Send to SUNAT (outside TX, has its own transactional context and retry job)
       if (documentId > 0) {
-        String pdfUrl = ticketPdfService.uploadForSale(saleId, documentId);
-        final String finalUrl = pdfUrl;
-        final long finalDocId = documentId;
-        final long finalSaleId = saleId;
-        inTx(s -> {
-          SaleDocument d = saleDocumentRepo.findById(finalDocId).orElseThrow();
-          d.setPdfUrl(finalUrl);
-          saleDocumentRepo.save(d);
-          Sale sa = saleRepo.findById(finalSaleId).orElseThrow();
-          sa.setTicketPdfUrl(finalUrl);
-          saleRepo.save(sa);
-          return null;
-        });
+        sunatDocumentJobService.sendSaleDocumentNow(documentId);
       }
 
       // PHASE 4: Return enriched response
