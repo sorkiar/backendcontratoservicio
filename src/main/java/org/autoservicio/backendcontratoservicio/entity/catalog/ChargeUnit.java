@@ -21,6 +21,6 @@ public class ChargeUnit extends AuditEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private Integer status = 1;
 }

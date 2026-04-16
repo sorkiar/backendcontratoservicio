@@ -23,6 +23,6 @@ public class Ubigeo {
     @Column(name = "distrit", length = 50)
     private String distrit;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private Integer status = 1;
 }

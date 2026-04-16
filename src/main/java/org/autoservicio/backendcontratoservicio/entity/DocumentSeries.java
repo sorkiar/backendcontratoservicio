@@ -25,6 +25,6 @@ public class DocumentSeries extends AuditEntity {
     @Column(name = "current_sequence", nullable = false)
     private Integer currentSequence = 0;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private Integer status = 1;
 }

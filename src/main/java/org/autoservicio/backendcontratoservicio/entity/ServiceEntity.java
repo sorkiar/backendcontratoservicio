@@ -68,6 +68,6 @@ public class ServiceEntity extends AuditEntity {
     @Column(name = "technical_sheet_url", length = 500)
     private String technicalSheetUrl;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private Integer status = 1;
 }

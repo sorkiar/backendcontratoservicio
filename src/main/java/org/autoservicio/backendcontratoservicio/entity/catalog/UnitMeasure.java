@@ -27,6 +27,6 @@ public class UnitMeasure extends AuditEntity {
     @Column(name = "symbol", length = 20)
     private String symbol;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private Integer status = 1;
 }

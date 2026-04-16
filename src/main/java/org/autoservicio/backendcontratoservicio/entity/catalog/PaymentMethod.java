@@ -24,6 +24,6 @@ public class PaymentMethod extends AuditEntity {
     @Column(name = "requires_proof", nullable = false)
     private Boolean requiresProof = false;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private Integer status = 1;
 }

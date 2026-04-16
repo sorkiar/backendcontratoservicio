@@ -21,6 +21,6 @@ public class ServiceCategory extends AuditEntity {
     @Column(name = "description", length = 255)
     private String description;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private Integer status = 1;
 }

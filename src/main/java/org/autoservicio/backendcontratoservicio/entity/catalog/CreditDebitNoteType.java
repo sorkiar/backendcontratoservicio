@@ -21,6 +21,6 @@ public class CreditDebitNoteType extends AuditEntity {
     @Column(name = "note_category", nullable = false, length = 10)
     private String noteCategory;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private Integer status = 1;
 }
